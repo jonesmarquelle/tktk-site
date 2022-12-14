@@ -39,6 +39,7 @@ const download = async (req: NextApiRequest, res: NextApiResponse) => {
                             res.end();
                         });
                 })
+                return;
             default:
                 res.setHeader('Allow', ['GET'])
                 return res.status(405).end(`Method ${method} Not Allowed`);
