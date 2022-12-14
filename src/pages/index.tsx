@@ -1,7 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { type NextPage } from "next";
 import Head from "next/head";
-import Image from "next/image";
 import { useRef, useState } from "react";
 import VideoInfo from "../components/VideoInfo";
 import { trpc } from "../utils/trpc";
@@ -187,7 +186,8 @@ const Home: NextPage = () => {
                   <VideoInfo video={video} />
                   <div className="relative bg-neutral-500 w-full flex flex-grow rounded-[2.5rem] overflow-clip">
                   {video?.thumbnail && 
-                    <Image 
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img 
                     className="absolute top-0 w-full object-cover aspect-[360/640] rounded-[2.5rem]" 
                     alt="" width={360} height={640} src={video.thumbnail}/>
                   }
