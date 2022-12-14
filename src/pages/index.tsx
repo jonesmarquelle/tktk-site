@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { type NextPage } from "next";
 import Head from "next/head";
+import Image from "next/image";
 import { useRef, useState } from "react";
 import VideoInfo from "../components/VideoInfo";
 import { trpc } from "../utils/trpc";
@@ -12,11 +13,20 @@ enum VideoLoadState {
   Failed
 }
 
-const Home: NextPage = () => {
-  const testVideo = { name: "Test Guy", username: "@testes", likesCount: 300, commentsCount: 20, sharesCount: 15 };
+interface TiktokVideo {
+  filename: string,
+  username: string,
+  name: string,
+  likesCount: number,
+  commentsCount: number,
+  sharesCount: number,
+  thumbnail: string,
+}
 
+const Home: NextPage = () => {
   const [ state, setState ] = useState(VideoLoadState.Default);
   const [ url, setUrl ] = useState<string>();
+  const [ video, setVideo ] = useState<TiktokVideo>();
   const acRef = useRef<AbortController | null>();
 
   const utils = trpc.useContext();
@@ -40,8 +50,8 @@ const Home: NextPage = () => {
   }
 
   const handleClick = async () => {
-    console.log('Download button clicked')
-    console.log(`State before click: ${state}`);
+    console.debug('Download button clicked')
+    console.debug(`State before click: ${state}`);
     switch (state) {
       case VideoLoadState.Default:
         if (verifyURL(url)) requestVideo();
@@ -64,19 +74,19 @@ const Home: NextPage = () => {
   }
 
   const verifyURL = (url?: string) => {
-    console.log('Verifying URL');
+    console.debug('Verifying URL');
     return !!url && true;
   }
 
   const abortVideoDownload = () => {
     if (!acRef.current) return;
-    console.log('Aborting video request...')
+    console.debug('Aborting video request...')
     acRef.current.abort();
-    console.log(`Video request aborted, current state: ${state}`);
+    console.debug(`Video request aborted, current state: ${state}`);
   }
 
   const requestVideo = async () => {
-    console.log('Sending video request to server');
+    console.debug('Sending video request to server');
     
     if (acRef.current) acRef.current.abort();
     acRef.current = new AbortController();
@@ -85,18 +95,37 @@ const Home: NextPage = () => {
 
     try {
       const video = await utils.client.video.getVideo.query({ url }, {signal: acRef.current.signal});
-      setState(video ? VideoLoadState.Loaded : VideoLoadState.Failed);
-      console.log(`Response: ${video}`);
+      if (video.res) {
+        setVideo(video.res);
+        setState(VideoLoadState.Loaded);
+      } else {
+        setState(VideoLoadState.Failed);
+      }
+      console.debug(`Response: ${JSON.stringify(video.res)}`);
     } catch (e) {
-      console.log('Error requesting video');
+      console.debug('Error requesting video');
       setState(VideoLoadState.Failed);
     }
   }
 
   const downloadVideo = async () => {
-    console.log('Downloading video to client');
-    console.log('Video saved!');
-    resetToDefault();
+    if (!video) return resetToDefault();
+
+    const getPath = video.filename;
+    console.debug(`Downloading video to client: ${getPath}`);
+
+    fetch(`./api/download?filename=${getPath}`)
+      .then((res) => res.blob())
+      .then((blob) => {
+        const localURL = URL.createObjectURL(blob);
+        resetToDefault();
+        const anchor = document.createElement('a');
+        anchor.setAttribute('href', localURL);
+        anchor.setAttribute('download', getPath);
+        anchor.click();
+      });
+    
+    console.debug('Video saved!');
     return;
   }
 
@@ -127,10 +156,10 @@ const Home: NextPage = () => {
       <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#ce9595] to-[#35043b] gap-6">
             <AnimatePresence>
               {isState().default && 
-                <motion.h1 className="absolute top-64 text-4xl md:text-5xl text-white"
+                <motion.h1 className="absolute top-60 text-center text-4xl md:text-5xl text-white"
                 initial={ false }
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0, translateY:"-100"}}>
+                exit={{ opacity: 0}}>
                   <strong>Tiktok</strong> Video Downloader
                 </motion.h1>}
             </AnimatePresence>
@@ -144,13 +173,19 @@ const Home: NextPage = () => {
               {isState().default &&
                 <input
                 onChange={updateUrl}
-                className="w-full h-full bg-transparent text-xl text-center outline-none"
+                className="w-full h-full bg-transparent text-neutral-700 text-xl text-center outline-none"
                 placeholder="Enter Tiktok URL..."/>
               }
               {isState().loaded &&
                 <div className="flex flex-col h-full w-full gap-2">
-                  <VideoInfo video={testVideo} />
-                  <div className="bg-neutral-500 w-full flex flex-grow rounded-[2.5rem]"/>
+                  <VideoInfo video={video} />
+                  <div className="relative bg-neutral-500 w-full flex flex-grow rounded-[2.5rem] overflow-clip">
+                  {video?.thumbnail && 
+                    <Image 
+                    className="absolute top-0 w-full object-cover aspect-[360/640] rounded-[2.5rem]" 
+                    alt="" width={360} height={640} src={video.thumbnail}/>
+                  }
+                  </div>
                 </div>
               }
             </motion.div>
@@ -160,7 +195,7 @@ const Home: NextPage = () => {
               style={{rotate: 0}}
               animate={["default", "loading", "loaded", "failed"][state]}
               variants={buttonVariants}>
-                {isState().default}{/* && <DownloadIcon width={"3rem"} height={"3rem"} className="fill-slate-800 hover:fill-white"/>*/}
+                {isState().default}
                 {isState().loading && <span>CANCEL</span>}
                 {isState().loaded && <span>DOWNLOAD</span>}
             </motion.button>
