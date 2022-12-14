@@ -105,7 +105,7 @@ const Home: NextPage = () => {
       }
       console.debug(`Response: ${JSON.stringify(video.res)}`);
     } catch (e) {
-      console.debug('Error requesting video');
+      console.error(`Error requesting video: ${e}`);
       setState(VideoLoadState.Failed);
     }
   }
