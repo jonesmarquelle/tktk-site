@@ -76,7 +76,9 @@ const Home: NextPage = () => {
 
   const verifyURL = (url?: string) => {
     console.debug('Verifying URL');
-    return !!url && true;
+    if (!url) return false;
+    if (!url.includes('tiktok.com')) return false;
+    return true;
   }
 
   const abortVideoDownload = () => {
